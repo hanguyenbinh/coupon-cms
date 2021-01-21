@@ -9,7 +9,7 @@ use Validator;
 use App\Models\User;
 
 
-class JwtAuthController extends Controller
+class JwtAuthController extends BaseController
 {
 
     public function __construct() {

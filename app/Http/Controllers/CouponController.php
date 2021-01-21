@@ -5,6 +5,8 @@ use JWTAuth;
 use Validator;
 use App\Models\Coupon;
 use App\Models\CouponInit;
+use App\Models\CouponRedeem;
+use App\Models\Gift;
 use Illuminate\Http\Request;
 use App\Http\Controllers\BaseController;
 use Illuminate\Http\Resources\Json\JsonResource;
@@ -24,63 +26,10 @@ class CouponController extends BaseController
      */
     public function index()
     {
-        //
+        // should implement pagination, filter here
         $coupons = Coupon::all();
-        return $this->sendResponse(JsonResource::collection($coupons), 'MSG_GET_ALL_COUPONS_SUCCESS');
-        // return response()->json([
-        //     'message' => 'MSG_GET_ALL_COUPONS_SUCCESS',
-        //     'coupons' => $coupons
-        // ], 200);
-    }
-
-    /**
-     * Show the form for creating a new resource.
-     *
-     * @return \Illuminate\Http\Response
-     */
-    public function create(Request $request)
-    {
-        $req = Validator::make($request->all(), [
-            'total' => 'required|integer|max:100|min:1',
-            'expiredDate' => 'required|date|date_format:m-d-Y'
-        ]);
-
-        if($req->fails()){
-            // return response()->json($req->errors()->toJson(), 400);
-            return $this->sendError($req->errors()->toJson(), 'INVALID_INPUT', 400);
-        }        
-        $user = JWTAuth::parseToken()->authenticate();
-        $total = $req->validated()['total'];
-        $expiredDate = $req->validated()['expiredDate'];
-        $coupons = [];
-        $couponsInit = [];
-        for ($i = 0; $i < $total; $i++) {
-            $id = Uuid::uuid4()->toString();
-            $coupons[] = [
-                'id' =>Uuid::uuid4()->toString(),
-                'code' => bin2hex(random_bytes(5)),
-                'expiredDate' => $expiredDate,
-                'userId' => $user->id
-            ];
-            $couponsInit[] = [
-                'id' =>Uuid::uuid4()->toString(),
-                'couponId' => $id,
-                'initBy' => $user->id
-            ];
-        }
-        DB::beginTransaction();
-        try{
-            $result = Coupon::insert($coupons);
-            $initResult = CouponInit::insert($couponsInit);
-        }
-        catch (Exception $e){
-            DB::rollback();
-            return $this->sendError($e, 'ERROR_DB_ERROR');
-        }
-        DB::commit();
-        
-        return $this->sendResponse($result, 'MSG_CREATE_COUPONS_SUCCESS');
-    }
+        return $this->sendResponse(JsonResource::collection($coupons), 'MSG_GET_ALL_COUPONS_SUCCESS');        
+    }    
 
     /**
      * Store a newly created resource in storage.
@@ -91,6 +40,52 @@ class CouponController extends BaseController
     public function store(Request $request)
     {
         //
+        $req = Validator::make($request->all(), [
+            'total' => 'required|integer|max:100|min:1',
+            'expiredDate' => 'required|date|date_format:m-d-Y'
+        ]);
+
+        if($req->fails()){
+            // return response()->json($req->errors()->toJson(), 400);
+            return $this->sendError('INVALID_INPUT', $req->errors()->toJson(), 400);
+        }        
+        $user = JWTAuth::parseToken()->authenticate();
+        $total = $req->validated()['total'];
+        $expiredDate = $req->validated()['expiredDate'];
+        $coupons = [];
+        $couponsInit = [];
+        $curDate = date('Y-m-d H:i:s');
+        for ($i = 0; $i < $total; $i++) {
+            $id = Uuid::uuid4()->toString();
+            $coupons[] = [
+                'id' =>Uuid::uuid4()->toString(),
+                'code' => bin2hex(random_bytes(5)),
+                'expiredDate' => $expiredDate,
+                'userId' => $user->id,
+                'created_at' => $curDate,
+                'updated_at' => $curDate
+
+            ];
+            $couponsInit[] = [
+                'id' =>Uuid::uuid4()->toString(),
+                'couponId' => $id,
+                'initBy' => $user->id,
+                'created_at' => $curDate,
+                'updated_at' => $curDate
+            ];
+        }
+        DB::beginTransaction();
+        try{
+            $result = Coupon::insert($coupons);
+            $initResult = CouponInit::insert($couponsInit);
+        }
+        catch (Exception $e){
+            DB::rollback();
+            return $this->sendError('ERROR_DB_ERROR', $e, 500);
+        }
+        DB::commit();
+        
+        return $this->sendResponse($result, 'MSG_CREATE_COUPONS_SUCCESS');
     }
 
     /**
@@ -102,18 +97,9 @@ class CouponController extends BaseController
     public function show(Coupon $coupon)
     {
         //
-    }
-
-    /**
-     * Show the form for editing the specified resource.
-     *
-     * @param  \App\Models\Coupon  $coupon
-     * @return \Illuminate\Http\Response
-     */
-    public function edit(Coupon $coupon)
-    {
-        //
-    }
+        return $this->sendResponse($coupon, 'MSG_GET_COUPON_SUCCESS');
+        // return response(['project' => new ProjectResource($project), 'message' => 'Retrieved successfully'], 200);
+    }    
 
     /**
      * Update the specified resource in storage.
@@ -125,6 +111,8 @@ class CouponController extends BaseController
     public function update(Request $request, Coupon $coupon)
     {
         //
+        $coupon->update($request->all());
+        return $this->sendResponse($coupon, 'MSG_UPDATE_COUPON_SUCCESS');        
     }
 
     /**
@@ -136,5 +124,36 @@ class CouponController extends BaseController
     public function destroy(Coupon $coupon)
     {
         //
+        $coupon->destroy();
+        return $this->sendResponse($coupon, 'MSG_DELETE_COUPON_SUCCESS');        
+    }
+
+    public function init(Request $request, $couponId) {
+        $user = JWTAuth::parseToken()->authenticate();
+        $iniCoupon = CouponInit::create([
+            'couponId' => $couponId,
+            'initBy' => $user->id,
+        ]);
+        return $this->sendResponse($iniCoupon, 'MSG_INIT_COUPON_SUCCESS');
+    }
+    public function redeem(Request $request, $couponId) {
+        $req = Validator::make($request->all(), [
+            'giftId' => 'required|uuid'
+        ]);
+
+        if($req->fails()){
+            // return response()->json($req->errors()->toJson(), 400);
+            return $this->sendError('INVALID_INPUT', $req->errors()->toJson(), 400);
+        }
+        $gift = Gift::find($request->giftId);
+        if (!$gift){
+            return $this->sendError('INVALID_GIFT', 'gift not found', 400);
+        }
+        $user = JWTAuth::parseToken()->authenticate();
+        $iniCoupon = CouponRedeem::create([
+            'couponId' => $couponId,
+            'redeemBy' => $user->id,
+        ]);
+        return $this->sendResponse($iniCoupon, 'MSG_REDEEM_COUPON_SUCCESS');
     }
 }

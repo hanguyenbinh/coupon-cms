@@ -28,14 +28,8 @@ Route::group([
     Route::get('/user', [JwtAuthController::class, 'user']);    
 });
 
-Route::group([
-    'middleware' => 'auth:api',
-    'prefix' => 'coupons'
-], function ($router) {
-    Route::get('/', [CouponController::class, 'index']);
-    Route::post('/', [CouponController::class, 'create']);
-    // Route::post('/', [CouponController::class, 'create']);    
-    // Route::put('/logout', [CouponController::class, 'logout']);
-    // Route::post('/refresh', [CouponController::class, 'refresh']);
-    // Route::get('/user', [CouponController::class, 'user']);    
+Route::middleware('auth:api')->group( function () {
+    Route::resource('coupons', CouponController::class);
+    Route::post('coupons/{id}/init', [CouponController::class, 'init']);
+    Route::post('coupons/{id}/redeem', [CouponController::class, 'redeem']);
 });
