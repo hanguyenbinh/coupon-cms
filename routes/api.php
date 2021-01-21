@@ -3,6 +3,7 @@
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\JwtAuthController;
+use App\Http\Controllers\CouponController;
 
 /*
 |--------------------------------------------------------------------------
@@ -18,10 +19,23 @@ use App\Http\Controllers\JwtAuthController;
 Route::group([
     'middleware' => 'api',
     'prefix' => 'auth'
+
 ], function ($router) {
-    Route::post('/signup', [JwtAuthController::class, 'register']);
-    Route::post('/signin', [JwtAuthController::class, 'login']);
-    Route::get('/user', [JwtAuthController::class, 'user']);
-    Route::post('/token-refresh', [JwtAuthController::class, 'refresh']);
-    Route::post('/signout', [JwtAuthController::class, 'signout']);
+    Route::post('/login', [JwtAuthController::class, 'login']);
+    Route::post('/register', [JwtAuthController::class, 'register']);    
+    Route::post('/logout', [JwtAuthController::class, 'logout']);
+    Route::post('/refresh', [JwtAuthController::class, 'refresh']);
+    Route::get('/user', [JwtAuthController::class, 'user']);    
+});
+
+Route::group([
+    'middleware' => 'auth:api',
+    'prefix' => 'coupons'
+], function ($router) {
+    Route::get('/', [CouponController::class, 'index']);
+    Route::post('/', [CouponController::class, 'create']);
+    // Route::post('/', [CouponController::class, 'create']);    
+    // Route::put('/logout', [CouponController::class, 'logout']);
+    // Route::post('/refresh', [CouponController::class, 'refresh']);
+    // Route::get('/user', [CouponController::class, 'user']);    
 });

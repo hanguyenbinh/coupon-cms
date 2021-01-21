@@ -15,7 +15,7 @@ class CreateCouponsTable extends Migration
     {
         Schema::create('coupons', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->string('code', 10);
+            $table->string('code', 10)->unique();
             $table->timestamp('expiredDate');
             $table->uuid('userId');
             $table->softDeletes();

@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Coupon;
+
 
 
 /*
@@ -18,5 +18,8 @@ use App\Http\Controllers\Coupon;
 Route::get('/', function () {
     return view('welcome');
 });
-Route::get('hello', [Coupon::class, 'index']);
+// Route::get('login', function () {
+//     return 'safsaffsfaffaf';
+// });
+// Route::get('hello', [Coupon::class, 'index']);
 //Route::resource('coupons', Coupon::class);
