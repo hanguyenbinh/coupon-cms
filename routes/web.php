@@ -20,3 +20,6 @@ Route::get('/', function () {
 });
 Route::get('hello', [Coupon::class, 'index']);
 //Route::resource('coupons', Coupon::class);
+Route::middleware(['auth:sanctum', 'verified'])->get('/dashboard', function () {
+    return view('dashboard');
+})->name('dashboard');
