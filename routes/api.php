@@ -4,6 +4,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\JwtAuthController;
 use App\Http\Controllers\CouponController;
+use App\Http\Controllers\GiftController;
 
 /*
 |--------------------------------------------------------------------------
@@ -28,8 +29,11 @@ Route::group([
     Route::get('/user', [JwtAuthController::class, 'user']);    
 });
 
-Route::middleware('auth:api')->group( function () {
+Route::middleware(['auth:api', 'throttle:6000,1'])->group( function () {
     Route::resource('coupons', CouponController::class);
     Route::post('coupons/{id}/init', [CouponController::class, 'init']);
-    Route::post('coupons/{id}/redeem', [CouponController::class, 'redeem']);
+    // Route::post('coupons/{id}/redeem', [CouponController::class, 'redeem']);
+    
+    Route::resource('gifts', GiftController::class);
+    Route::post('gifts/{id}/redeem', [GiftController::class, 'redeem']);
 });

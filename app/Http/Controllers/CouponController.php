@@ -98,7 +98,6 @@ class CouponController extends BaseController
     {
         //
         return $this->sendResponse($coupon, 'MSG_GET_COUPON_SUCCESS');
-        // return response(['project' => new ProjectResource($project), 'message' => 'Retrieved successfully'], 200);
     }    
 
     /**
@@ -136,24 +135,5 @@ class CouponController extends BaseController
         ]);
         return $this->sendResponse($iniCoupon, 'MSG_INIT_COUPON_SUCCESS');
     }
-    public function redeem(Request $request, $couponId) {
-        $req = Validator::make($request->all(), [
-            'giftId' => 'required|uuid'
-        ]);
-
-        if($req->fails()){
-            // return response()->json($req->errors()->toJson(), 400);
-            return $this->sendError('INVALID_INPUT', $req->errors()->toJson(), 400);
-        }
-        $gift = Gift::find($request->giftId);
-        if (!$gift){
-            return $this->sendError('INVALID_GIFT', 'gift not found', 400);
-        }
-        $user = JWTAuth::parseToken()->authenticate();
-        $iniCoupon = CouponRedeem::create([
-            'couponId' => $couponId,
-            'redeemBy' => $user->id,
-        ]);
-        return $this->sendResponse($iniCoupon, 'MSG_REDEEM_COUPON_SUCCESS');
-    }
+    
 }
