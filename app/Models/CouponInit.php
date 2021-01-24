@@ -16,6 +16,6 @@ class CouponInit extends Model
     
     protected $fillable = [
         'couponId',
-        'initBy'        
+        'groupId'        
     ];
 }

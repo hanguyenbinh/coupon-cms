@@ -17,6 +17,7 @@ class CreateGiftsTable extends Migration
             $table->uuid('id')->primary();
             $table->string('defaultName', 40);
             $table->integer('couponExchangeRate');
+            $table->integer('inStock');
             $table->softDeletes();
             $table->timestamps();
         });

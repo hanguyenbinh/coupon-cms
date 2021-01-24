@@ -54,7 +54,8 @@ async function createGift(auth) {
             },
             formData: {
                 "defaultName": generateName(),
-                "couponExchangeRate": getRandomInt(1, 4)
+                "couponExchangeRate": getRandomInt(1, 4),
+                "inStock": getRandomInt(1,10)
             }
         };
 
@@ -88,17 +89,24 @@ async function main() {
 
         for (let i = 0; i < 500; i++) {
             jobs.push(new Promise((resolve, reject) => {
+                const langs = ['en', 'vn', 'cn'];
+                const languages = [];
+                for (let j = 0; j < langs.length; j++){
+                    languages.push({lang: langs[j], value: generateName()})
+                }
                 const options = {
                     method: "POST",
                     url: "http://localhost:8000/api/gifts",
                     port: 8000,
                     headers: {
                         "Authorization": "Bearer " + token,
-                        "Content-Type": "multipart/form-data"
+                        "Content-Type": "application/json"
                     },
-                    formData: {
-                        "defaultName": generateName(),
-                        "couponExchangeRate": getRandomInt(1, 4)
+                    json: {
+                        // "defaultName": generateName(),
+                        "inStock": getRandomInt(1,10),
+                        "couponExchangeRate": getRandomInt(1, 4),
+                        languages
                     }
                 };
 

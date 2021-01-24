@@ -5,6 +5,7 @@ use JWTAuth;
 use Validator;
 use App\Models\Coupon;
 use App\Models\CouponInit;
+use App\Models\CouponGroup;
 use App\Models\CouponRedeem;
 use App\Models\Gift;
 use Illuminate\Http\Request;
@@ -23,12 +24,65 @@ class CouponController extends BaseController
      * Display a listing of the resource.
      *
      * @return \Illuminate\Http\Response
-     */
-    public function index()
+     * type: all, redeem, notredeem
+     */    
+    public function index(Request $request)
     {
         // should implement pagination, filter here
-        $coupons = Coupon::all();
-        return $this->sendResponse(JsonResource::collection($coupons), 'MSG_GET_ALL_COUPONS_SUCCESS');        
+        $page = $request->has('page') ? $request->get('page') : 1;
+        $type = $request->has('type') ? $request->get('type') : 'all';
+        $limit = env('MAX_DISPLAY_RESULT');
+        $coupons = [];
+        $totalRecords = 0;
+        switch($type){
+            case 'all':
+                $coupons = Coupon::limit($limit)->offset(($page - 1) * $limit)->get();
+                $totalRecords = Coupon::count(); 
+                break;
+            case 'redeem':
+                $coupons = Coupon::leftJoin('coupon_redeems', function($join){
+                    $join->on('coupons.id', '=', 'coupon_redeems.couponId');
+                })
+                ->select('coupons.*')
+                ->whereNotNull('coupon_redeems.id')
+                ->limit($limit)
+                ->offset(($page - 1) * $limit)
+                ->get();
+                $totalRecords = Coupon::leftJoin('coupon_redeems', function($join){
+                    $join->on('coupons.id', '=', 'coupon_redeems.couponId');
+                })
+                ->select('coupons.*')
+                ->whereNotNull('coupon_redeems.id')
+                ->count();
+                break;
+            case 'notredeem':
+                $coupons = Coupon::leftJoin('coupon_redeems', function($join){
+                    $join->on('coupons.id', '=', 'coupon_redeems.couponId');
+                })
+                ->select('coupons.*')
+                ->whereNull('coupon_redeems.id')
+                ->limit($limit)
+                ->offset(($page - 1) * $limit)
+                ->get();
+                $totalRecords = Coupon::leftJoin('coupon_redeems', function($join){
+                    $join->on('coupons.id', '=', 'coupon_redeems.couponId');
+                })
+                ->whereNull('coupon_redeems.id')
+                ->count();
+                break;
+            case 'expired':
+                $coupons = Coupon::whereDate('expiredDate', '<=', date('Y-m-d H:i:s'))
+                ->limit($limit)
+                ->offset(($page - 1) * $limit)
+                ->get();
+                $totalRecords = Coupon::whereDate('expiredDate', '<=', date('Y-m-d H:i:s'))->count();
+                break;
+        }
+        $result = [
+            "records"=>JsonResource::collection($coupons),
+            "total"=>$totalRecords
+        ];
+        return $this->sendResponse($result, 'MSG_GET_ALL_COUPONS_SUCCESS');
     }    
 
     /**
@@ -42,7 +96,7 @@ class CouponController extends BaseController
         //
         $req = Validator::make($request->all(), [
             'total' => 'required|integer|max:100|min:1',
-            'expiredDate' => 'required|date|date_format:m-d-Y'
+            'expiredDate' => 'required|date|date_format:"Y-m-d"'
         ]);
 
         if($req->fails()){
@@ -55,27 +109,33 @@ class CouponController extends BaseController
         $coupons = [];
         $couponsInit = [];
         $curDate = date('Y-m-d H:i:s');
-        for ($i = 0; $i < $total; $i++) {
-            $id = Uuid::uuid4()->toString();
-            $coupons[] = [
-                'id' =>Uuid::uuid4()->toString(),
-                'code' => bin2hex(random_bytes(5)),
-                'expiredDate' => $expiredDate,
-                'userId' => $user->id,
-                'created_at' => $curDate,
-                'updated_at' => $curDate
-
-            ];
-            $couponsInit[] = [
-                'id' =>Uuid::uuid4()->toString(),
-                'couponId' => $id,
-                'initBy' => $user->id,
-                'created_at' => $curDate,
-                'updated_at' => $curDate
-            ];
-        }
+        
         DB::beginTransaction();
         try{
+            $couponGroup = CouponGroup::create([
+                'totalInit' => $total,
+                'userId' => $user->id
+            ]);
+            for ($i = 0; $i < $total; $i++) {
+                $id = Uuid::uuid4()->toString();
+                $coupons[] = [
+                    'id' =>Uuid::uuid4()->toString(),
+                    'code' => bin2hex(random_bytes(5)),
+                    'expiredDate' => $expiredDate,
+                    'userId' => $user->id,
+                    'groupId' => $couponGroup->id,
+                    'created_at' => $curDate,
+                    'updated_at' => $curDate
+    
+                ];
+                $couponsInit[] = [
+                    'id' =>Uuid::uuid4()->toString(),
+                    'couponId' => $id,
+                    'groupId' => $couponGroup->id,
+                    'created_at' => $curDate,
+                    'updated_at' => $curDate
+                ];
+            }
             $result = Coupon::insert($coupons);
             $initResult = CouponInit::insert($couponsInit);
         }
@@ -124,16 +184,26 @@ class CouponController extends BaseController
     {
         //
         $coupon->destroy();
-        return $this->sendResponse($coupon, 'MSG_DELETE_COUPON_SUCCESS');        
+        return $this->sendResponse($coupon, 'MSG_DELETE_COUPON_SUCCESS');
     }
 
-    public function init(Request $request, $couponId) {
-        $user = JWTAuth::parseToken()->authenticate();
-        $iniCoupon = CouponInit::create([
-            'couponId' => $couponId,
-            'initBy' => $user->id,
+
+    /**
+     * Get all coupon having code in a code array
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function getByCode(Request $request){
+        $req = Validator::make($request->all(), [
+            'codes' => 'required|array|min:1',            
         ]);
-        return $this->sendResponse($iniCoupon, 'MSG_INIT_COUPON_SUCCESS');
+
+        if($req->fails()){            
+            return $this->sendError('INVALID_INPUT', $req->errors()->toJson(), 400);
+        }
+        $codes = $req->validated()['codes'];
+        $coupons = Coupon::whereIn('code', $codes)->get();
+        return $this->sendResponse(JsonResource::collection($coupons), 'MSG_GET_COUPONS_SUCCESS');
     }
-    
 }

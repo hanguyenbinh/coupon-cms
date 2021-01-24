@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateCouponInitsTable extends Migration
+class CreateCouponGroupsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,11 +13,11 @@ class CreateCouponInitsTable extends Migration
      */
     public function up()
     {
-        Schema::create('coupon_inits', function (Blueprint $table) {
+        Schema::create('coupon_groups', function (Blueprint $table) {
             $table->uuid('id')->primary();
-            $table->uuid('couponId');
-            $table->uuid('groupId');
-            $table->softDeletes();
+            $table->integer('totalInit');
+            $table->uuid('userId'); // who init            
+            $table->softDeletes();            
             $table->timestamps();
         });
     }
@@ -29,6 +29,6 @@ class CreateCouponInitsTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('coupon_inits');
+        Schema::dropIfExists('coupon_groups');
     }
 }
