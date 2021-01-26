@@ -1,29 +1,46 @@
-FROM centos:7
-RUN yum install -y http://rpms.remirepo.net/enterprise/remi-release-7.rpm
-RUN yum install -y epel-release yum-utils
-RUN yum-config-manager --disable remi-php54
-RUN yum-config-manager --enable remi-php74
+FROM phpdockerio/php73-fpm:latest
 
-RUN yum install -y wget unzip OpenSSL PDO Mbstring Tokenizer xml zip curl
-RUN yum install -y php-pgsql php-pecl-memcache php-pecl-memcached php-gd php-mbstring php-mcrypt php-xml php-pecl-apc php-cli php-pear php-zip
+# Arguments defined in docker-compose.yml
+# ARG user
+# ARG uid
+ARG DEBIAN_FRONTEND=noninteractive
+
+
+# Install system dependencies
+RUN apt-get update \
+    && apt-get update && apt-get install -y \
+    git \
+    curl \
+    libpng-dev \
+    libonig-dev \
+    libxml2-dev \
+    zip \
+    unzip \
+    libpq-dev \
+    postgresql-client \
+    && apt-get -y --no-install-recommends install  php7.3-pgsql php7.3-gd php-redis \
+    && apt-get clean; rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /usr/share/doc/*
 
 RUN curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.34.0/install.sh | bash
-RUN source $HOME/.bashrc && nvm install 12.14.1
+RUN . $HOME/.bashrc && nvm install 12.14.1
 
 RUN ln -s $HOME/.nvm/versions/node/v12.14.1/bin/node /usr/bin/node
 RUN ln -s $HOME/.nvm/versions/node/v12.14.1/bin/npm /usr/bin/npm
 
+# Clear cache
+RUN apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Install PHP extensions
+# RUN docker-php-ext-install pgsql
 
-RUN php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
-RUN HASH="$(wget -q -O - https://composer.github.io/installer.sig)"
-# RUN php -r "if (hash_file('SHA384', 'composer-setup.php') === '$HASH') { echo 'Installer verified'; } else { echo 'Installer corrupt'; unlink('composer-setup.php'); } echo PHP_EOL;"
-RUN php composer-setup.php --install-dir=/usr/local/bin --filename=composer
+# Get latest Composer
+COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-WORKDIR /home/app
-COPY . /home/app
+# Create system user to run Composer and Artisan Commands
+# RUN useradd -G www-data,root -u $uid -d /home/$user $user
+# RUN mkdir -p /home/$user/.composer && \
+#     chown -R $user:$user /home/$user
 
-RUN composer install
-RUN npm install
-# RUN php artisan migrate
-CMD ["php artisan serve"]
+# Set working directory
+WORKDIR /var/www
+# USER $user

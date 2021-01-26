@@ -1,22 +1,20 @@
 # For more information: https://laravel.com/docs/sail
 version: '3'
 services:
-    laravel.test:
+    laravel:
         container_name: coupon-cms-laravel
         build:
-            context: ./docker/7.4
-            dockerfile: Dockerfile
             args:
-                WWWGROUP: '${WWWGROUP}'
-        image: sail-8.0/app
-        ports:
-            - '${APP_PORT:-80}:80'
+                user: sammy
+                uid: 1000
+            context: .
+            dockerfile: Dockerfile       
         environment:
-            WWWUSER: '${WWWUSER}'
-            LARAVEL_SAIL: 1
             DB_HOST: pgsql
+        restart: unless-stopped
+        working_dir: /var/www/
         volumes:
-            - '.:/var/www/html'
+            - .:/var/www
         networks:
             - sail
         depends_on:            
@@ -34,7 +32,17 @@ services:
             - 'sailpostgresql:/var/lib/postgresql/data'
         networks:
             - sail
-    
+    nginx:
+        image: nginx:alpine
+        container_name: coupon-cms-nginx
+        restart: unless-stopped
+        ports:
+        - 8000:80
+        volumes:
+        - .:/var/www
+        - ./nginx:/etc/nginx/conf.d
+        networks:
+        - sail
 networks:
     sail:
         driver: bridge
