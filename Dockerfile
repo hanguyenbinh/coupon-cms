@@ -25,5 +25,5 @@ COPY . /home/app
 
 RUN composer install
 RUN npm install
-RUN php artisan migrate
-RUN php artisan serve
+# RUN php artisan migrate
+CMD ["php artisan serve"]

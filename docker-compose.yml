@@ -1,9 +1,44 @@
 # For more information: https://laravel.com/docs/sail
-version: "3"
+version: '3'
 services:
-    copon-cms:
+    laravel.test:
+        container_name: coupon-cms-laravel
         build:
-            context: .
-            dockerfile: Dockerfile            
+            context: ./docker/7.4
+            dockerfile: Dockerfile
+            args:
+                WWWGROUP: '${WWWGROUP}'
+        image: sail-8.0/app
         ports:
-            - "8000:8000"
+            - '${APP_PORT:-80}:80'
+        environment:
+            WWWUSER: '${WWWUSER}'
+            LARAVEL_SAIL: 1
+            DB_HOST: pgsql
+        volumes:
+            - '.:/var/www/html'
+        networks:
+            - sail
+        depends_on:            
+            - pgsql
+    pgsql:
+        image: postgres:13
+        ports:
+            - '${FORWARD_DB_PORT:-5432}:5432'
+        environment:
+            PGPASSWORD: '${DB_PASSWORD:-secret}'
+            POSTGRES_DB: '${DB_DATABASE}'
+            POSTGRES_USER: '${DB_USERNAME}'
+            POSTGRES_PASSWORD: '${DB_PASSWORD:-secret}'
+        volumes:
+            - 'sailpostgresql:/var/lib/postgresql/data'
+        networks:
+            - sail
+    
+networks:
+    sail:
+        driver: bridge
+volumes:
+    sailpostgresql:
+       driver: local
+    
